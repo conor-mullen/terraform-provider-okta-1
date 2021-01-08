@@ -36,6 +36,9 @@ func TestAccOktaPolicyRuleSignon_crud(t *testing.T) {
 	config := mgr.GetFixtures("basic.tf", ri, t)
 	updatedConfig := mgr.GetFixtures("basic_updated.tf", ri, t)
 	excludedNetwork := mgr.GetFixtures("excluded_network.tf", ri, t)
+	oktaIdentityProvider := mgr.GetFixtures("okta_identity_provider.tf", ri, t)
+	otherIdentityProvider := mgr.GetFixtures("other_identity_provider.tf", ri, t)
+
 	resourceName := fmt.Sprintf("%s.test", policyRuleSignOn)
 
 	resource.Test(t, resource.TestCase{
@@ -72,6 +75,26 @@ func TestAccOktaPolicyRuleSignon_crud(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "status", statusActive),
 					resource.TestCheckResourceAttr(resourceName, "access", "DENY"),
 					resource.TestCheckResourceAttr(resourceName, "network_connection", "ZONE"),
+				),
+			},
+			{
+				Config: oktaIdentityProvider,
+				Check: resource.ComposeTestCheckFunc(
+					ensureRuleExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "name", fmt.Sprintf("testAcc_%d", ri)),
+					resource.TestCheckResourceAttr(resourceName, "status", statusActive),
+					resource.TestCheckResourceAttr(resourceName, "mfa_required", "true"),
+					resource.TestCheckResourceAttr(resourceName, "identity_provider", "OKTA"),
+				),
+			},
+			{
+				Config: otherIdentityProvider,
+				Check: resource.ComposeTestCheckFunc(
+					ensureRuleExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "name", fmt.Sprintf("testAcc_%d", ri)),
+					resource.TestCheckResourceAttr(resourceName, "status", statusActive),
+					resource.TestCheckResourceAttr(resourceName, "mfa_required", "false"),
+					resource.TestCheckResourceAttr(resourceName, "identity_provider", "SPECIFC_IDP"),
 				),
 			},
 		},
