@@ -73,6 +73,19 @@ func resourcePolicySignonRule() *schema.Resource {
 				Description: "Whether session cookies will last across browser sessions. Okta Administrators can never have persistent session cookies.",
 				Default:     false,
 			},
+			"identity_provider": {
+				Type:             schema.TypeString,
+				Optional:         true,
+				ValidateDiagFunc: stringInSlice([]string{"ANY", "OKTA", "SPECIFIC_IDP"}),
+				Description:      "Apply rule based on the IdP used: ANY, OKTA or SPECIFIC_IDP.",
+				Default:          "ANY",
+			},
+			"identity_provider_ids": { // identity_provider must be SPECIFIC_IDP
+				Type:        schema.TypeList,
+				Optional:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Description: "When identity_provider is SPECIFIC_IDP then this is the list of IdP IDs to apply the rule on",
+			},
 		}),
 	}
 }
@@ -104,6 +117,8 @@ func resourcePolicySignOnRuleRead(ctx context.Context, d *schema.ResourceData, m
 	_ = d.Set("session_idle", rule.Actions.Signon.Session.MaxSessionIdleMinutes)
 	_ = d.Set("session_lifetime", rule.Actions.Signon.Session.MaxSessionLifetimeMinutes)
 	_ = d.Set("session_persistent", rule.Actions.Signon.Session.UsePersistentCookie)
+	_ = d.Set("identity_provider", rule.Conditions.IdentityProvider.Provider)
+	_ = d.Set("identity_provider_ids", rule.Conditions.IdentityProvider.IdpIds)
 
 	if rule.Actions.Signon.FactorPromptMode != "" {
 		_ = d.Set("mfa_prompt", rule.Actions.Signon.FactorPromptMode)
@@ -146,6 +161,10 @@ func buildSignOnPolicyRule(d *schema.ResourceData) sdk.PolicyRule {
 			AuthType: d.Get("authtype").(string),
 		},
 		People: getUsers(d),
+		IdentityProvider: &okta.IdentityProviderPolicyRuleCondition{
+			Provider: d.Get("identity_provider").(string),
+			IdpIds:   convertInterfaceToStringArr(d.Get("identity_provider_ids")),
+		},
 	}
 	template.Actions = sdk.PolicyRuleActions{
 		OktaSignOnPolicyRuleActions: &okta.OktaSignOnPolicyRuleActions{
